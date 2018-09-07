@@ -1,0 +1,56 @@
+---
+apiVersion: apps/v1beta1
+kind: StatefulSet
+metadata:
+  name: jenkins-master
+  namespace: itsmetommy
+spec:
+  serviceName: "jenkins-master"
+  replicas:   1
+  revisionHistoryLimit: 3
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: jenkins-master
+  template:
+    metadata:
+      labels:
+        app: jenkins-master
+    spec:
+      securityContext:
+        fsGroup: 1000
+      containers:
+      - name: jenkins
+        image: jenkins/jenkins
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8080
+          name: jenkins-ui
+        - containerPort: 50000
+          name: jnlp
+        volumeMounts:
+          - name: jenkins-master-home
+            mountPath: /var/jenkins_home
+        readinessProbe:
+          initialDelaySeconds: 90
+          httpGet:
+            path: /login
+            port: 8080
+          periodSeconds: 10
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 10
+        env:
+          - name: JENKINS_OPTS
+            value: ""
+          - name: JAVA_OPTS
+            value: "-Xms100m -Xmx300m -XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap"
+  volumeClaimTemplates:
+    - metadata:
+        name: jenkins-master-home
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: 50Gi
